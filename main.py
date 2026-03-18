@@ -1,25 +1,50 @@
 import yfinance as yf
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from decimal import Decimal
+import time
 
-# Define the ticker symbol (In my case Apple)
-ticker_symbol1 = "AAPL"
+start_time = time.time_ns()
 
+ticker_symbol1 = "USDTRY=X"
+ticker_symbol2 = "EURJPY=X"
 
-# Create a Ticker object
-ticker = yf.Ticker(ticker_symbol)
+color_pairs = [
+    ["red", "green"],
+    ["blue", "yellow"],
+    ["cyan", "gray"],
+    ["magenta", "orange"],
+]
 
-tickers = [ticker]
+tickers_symbols = [ticker_symbol1, ticker_symbol2]
 
-# Fetch historical market data
-for ticker in tickers:
-    data = ticker.history(period="25y")  # data for the last 25 years
-    print(data.keys())
+fig = make_subplots(rows=1, cols=1, shared_xaxes=True, vertical_spacing=0.05)
 
+for ticker_symbol, row in zip(tickers_symbols, range(0, len(tickers_symbols))):
+    ticker = yf.Ticker(ticker_symbol)
+    data = ticker.history(start="2026-01-18", end="2026-02-18", interval="5m")
 
-fig = go.Figure(data=[go.Candlestick(x=data.index,
-                open=data['Open'], high=data['High'],
-                low=data['Low'], close=data['Close'])
-                     ])
-                     
-fig.update_layout(xaxis_rangeslider_visible=False)
+    if begin_from_same_point:
+        start_point = Decimal(str(data.iloc[0]["Open"]))
+        print(start_point)
+
+    fig.add_trace(
+        go.Candlestick(
+            x=data.index,
+            open=data["Open"].apply(lambda x: Decimal(str(x)) / start_point),
+            high=data["High"].apply(lambda x: Decimal(str(x)) / start_point),
+            low=data["Low"].apply(lambda x: Decimal(str(x)) / start_point),
+            close=data["Close"].apply(lambda x: Decimal(str(x)) / start_point),
+            name=ticker_symbol,
+            increasing_line_color=color_pairs[row][0],
+            decreasing_line_color=color_pairs[row][1],
+        ),
+        row=1,
+        col=1,
+    )
+
+fig.update_layout(xaxis_rangeslider_visible=False, height=800, title_text="Comparison")
 fig.show()
+
+end_time = time.time_ns()
+print(f"Time taken: {(end_time - start_time) / 1e9} s")
