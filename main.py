@@ -1,49 +1,68 @@
-import yfinance as yf
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from decimal import Decimal
 import time
+from api import fetch_oanda_data, fetch_yfinance_data, fetch_alpha_vantage_data, fetch_polygon_data
+from graph import create_normalized_candlestick_chart
 
-start_time = time.time_ns()
+def main():
+    start_time = time.time_ns()
 
-ticker_symbol1 = "GBPJPY=X"
-ticker_symbol2 = "EURJPY=X"
+    # Configuration
+    oanda_symbols = ["GBP_JPY", "EUR_JPY"]
+    yf_symbols = ["USDTRY=X"] # Example mix
+    
+    color_pairs = [
+        ["#00FF00", "#FF007F"], # Neon Green / Hot Pink
+        ["#00FFFF", "#FFD700"], # Cyan / Gold
+        ["#FFFFFF", "#AAAAAA"]  # White / Gray for YF
+    ]
 
-color_pairs = [
-    ["red", "green"],
-    ["blue", "yellow"],
-    ["cyan", "gray"],
-    ["magenta", "orange"],
-]
+    all_data = []
+    all_symbols = []
 
-tickers_symbols = [ticker_symbol1, ticker_symbol2]
+    # 1. Fetch OANDA data
+    for symbol in oanda_symbols:
+        print(f"Fetching OANDA data for {symbol}...")
+        df = fetch_oanda_data(symbol, count=50, granularity="S5")
+        if not df.empty:
+            all_data.append(df)
+            all_symbols.append(f"OANDA:{symbol}")
 
-fig = make_subplots(rows=1, cols=1, shared_xaxes=True, vertical_spacing=0.05)
+    # 2. Fetch yfinance data (example)
+    # for symbol in yf_symbols:
+    #     print(f"Fetching yfinance data for {symbol}...")
+    #     # Note: adjust period/interval as needed to overlap with OANDA
+    #     df = fetch_yfinance_data(symbol, period="5d", interval="5m")
+    #     if not df.empty:
+    #         all_data.append(df)
+    #         all_symbols.append(f"YF:{symbol}")
 
-for ticker_symbol, row in zip(tickers_symbols, range(0, len(tickers_symbols))):
-    ticker = yf.Ticker(ticker_symbol)
-    data = ticker.history(start="2026-01-22", end="2026-01-23", interval="5m")
+    # 3. Fetch Alpha Vantage data (example)
+    print("Fetching Alpha Vantage data for IBM...")
+    df_av = fetch_alpha_vantage_data("IBM", interval="daily")
+    if not df_av.empty:
+        all_data.append(df_av)
+        all_symbols.append("AV:IBM")
 
-    start_point = Decimal(str(data.iloc[0]["Open"]))
-    print(start_point)
+    # 4. Fetch Polygon.io data (example)
+    print("Fetching Polygon data for AAPL...")
+    df_poly = fetch_polygon_data("AAPL", multiplier=1, timespan="minute", from_date="2025-01-09", to_date="2025-01-10")
+    if not df_poly.empty:
+        all_data.append(df_poly)
+        all_symbols.append("POLYGON:AAPL")
 
-    fig.add_trace(
-        go.Candlestick(
-            x=data.index,
-            open=data["Open"].apply(lambda x: Decimal(str(x)) / start_point),
-            high=data["High"].apply(lambda x: Decimal(str(x)) / start_point),
-            low=data["Low"].apply(lambda x: Decimal(str(x)) / start_point),
-            close=data["Close"].apply(lambda x: Decimal(str(x)) / start_point),
-            name=ticker_symbol,
-            increasing_line_color=color_pairs[row][0],
-            decreasing_line_color=color_pairs[row][1],
-        ),
-        row=1,
-        col=1,
-    )
+    # 5. Create Graph
+    if all_data:
+        fig = create_normalized_candlestick_chart(
+            all_data, 
+            all_symbols, 
+            color_pairs, 
+            title="OANDA vs yfinance Comparison (Normalized)"
+        )
+        fig.show()
+    else:
+        print("No data fetched.")
 
-fig.update_layout(xaxis_rangeslider_visible=False, height=800, title_text="Comparison")
-fig.show()
+    end_time = time.time_ns()
+    print(f"Time taken: {(end_time - start_time) / 1e9} s")
 
-end_time = time.time_ns()
-print(f"Time taken: {(end_time - start_time) / 1e9} s")
+if __name__ == "__main__":
+    main()
